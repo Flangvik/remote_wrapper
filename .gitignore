@@ -143,3 +143,7 @@ _ReSharper*/
 
 # vscode
 .vscode/
+
+# Sensitive configuration files
+remote-wrapper-client/config.json
+Payload_Type/remote_wrapper/remote_wrapper/dont_show_on_stream.txt
