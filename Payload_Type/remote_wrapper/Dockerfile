@@ -1,1 +1,1 @@
-FROM ghcr.io/mythicagents/service_wrapper:v0.0.3
+FROM ghcr.io/flangvik/remote_wrapper:v0.0.1
