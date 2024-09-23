@@ -65,8 +65,8 @@ jobs:
       - name: Build and push the server container image
         uses: docker/build-push-action@v5 # ref: https://github.com/marketplace/actions/build-and-push-docker-images
         with:
-          context: Payload_Type/service_wrapper
-          file: Payload_Type/service_wrapper/.docker/Dockerfile
+          context: Payload_Type/remote_wrapper
+          file: Payload_Type/remote_wrapper/.docker/Dockerfile
           tags: |
             ${{ env.REGISTRY }}/${{ env.AGENT_IMAGE_NAME }}:${{ env.VERSION }}
             ${{ env.REGISTRY }}/${{ env.AGENT_IMAGE_NAME }}:latest
@@ -99,7 +99,7 @@ jobs:
       # The Dockerfile which Mythic uses to pull in the base container image needs to be
       # updated to reference the newly built container image
       - name: Fix the server Dockerfile reference to reference the new release tag
-        working-directory: Payload_Type/service_wrapper
+        working-directory: Payload_Type/remote_wrapper
         run: |
           sed -i "s|^FROM ghcr\.io.*$|FROM ${REGISTRY}/${AGENT_IMAGE_NAME}:${VERSION}|" Dockerfile
 
