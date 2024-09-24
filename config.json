@@ -5,6 +5,6 @@
   "exclude_documentation_c2": false,
   "exclude_agent_icons": false,
   "remote_images": {
-    "remote_wrapper": "ghcr.io/flangvik/remote_wrapper:v0.0.1"
+    "remote_wrapper": "ghcr.io/flangvik/remote_wrapper:v1.0.0"
   }
 }

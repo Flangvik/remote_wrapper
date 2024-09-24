@@ -1,1 +1,1 @@
-FROM ghcr.io/flangvik/remote_wrapper:v0.0.1
+FROM ghcr.io/flangvik/remote_wrapper:v1.0.0
