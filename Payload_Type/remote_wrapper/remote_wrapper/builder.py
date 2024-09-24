@@ -2,7 +2,6 @@ from mythic_container.PayloadBuilder import *
 from mythic_container.MythicCommandBase import *
 import asyncio
 import os
-import Payload_Type.remote_wrapper.remote_wrapper.servicebushelper as servicebushelper
 import tempfile
 import json
 import zlib
@@ -10,7 +9,7 @@ from distutils.dir_util import copy_tree
 from pathlib import PurePath
 import base64
 from mythic_container.MythicRPC import *
-from Payload_Type.remote_wrapper.remote_wrapper.servicebushelper import ServiceBus
+from remote_wrapper.servicebushelper import ServiceBusHandler
 
 class RemoteWrapper(PayloadType):
 
@@ -51,7 +50,7 @@ class RemoteWrapper(PayloadType):
     ]
     c2_profiles = []
     agent_path = PurePath(".") / "remote_wrapper"
-    agent_icon_path = agent_path / "remote_wrapper.svg"
+    agent_icon_path = agent_path / "service_wrapper.svg"
     agent_code_path = agent_path / "agent_code"
 
     build_steps = [
@@ -76,7 +75,7 @@ class RemoteWrapper(PayloadType):
             ))
 
             ## Establish a new servicebus connection
-            servicebus_connection = ServiceBus(self.get_parameter("service_bus_connection_string"), self.get_parameter("request_queue_name"), self.get_parameter("response_queue_name"))
+            servicebus_connection = ServiceBusHandler(self.get_parameter("service_bus_connection_string"), self.get_parameter("request_queue_name"), self.get_parameter("response_queue_name"))
             
             servicebus_connection._ensure_queues_exist()
             ## Generate a new payload message object
