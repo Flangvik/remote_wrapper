@@ -2,3 +2,4 @@ mythic-container==0.5.9
 requests
 azure-servicebus
 azure-core
+azure-storage-blob

@@ -8,7 +8,14 @@ class ServiceBusHandler:
     def __init__(self, connection_string, input_queue_name, output_queue_name):
         self.connection_string = connection_string
         self.servicebus_client = ServiceBusClient.from_connection_string(conn_str=connection_string)
-        self.admin_client = ServiceBusAdministrationClient.from_connection_string(connection_string)
+
+        # Check that the connection string is valid
+        try:
+            self.admin_client = ServiceBusAdministrationClient.from_connection_string(connection_string)
+        except Exception as e:
+            print(f"Error: {str(e)}")
+            raise
+
         self.input_queue_name = input_queue_name
         self.output_queue_name = output_queue_name
 
