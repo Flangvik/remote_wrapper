@@ -4,24 +4,34 @@ import base64
 import zlib
 import uuid
 import os
+import asyncio
 import subprocess
 import logging
-from azure.servicebus import ServiceBusClient, ServiceBusMessage
+from azure.servicebus import ServiceBusMessage
+
+# Add the path to the remote_wrapper package
+remote_wrapper_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Payload_Type', 'remote_wrapper'))
+sys.path.append(remote_wrapper_path)
+
+from remote_wrapper.servicebushelper import ServiceBusHandler
+from remote_wrapper.storagehelper import StorageHandler
 
 def read_config(config_file):
     with open(config_file, 'r') as f:
         return json.load(f)
 
-def execute_command(command, payload_message):
+def execute_command(command, payload_message, storage_handler):
     input_file = f"input_{uuid.uuid4()}.bin"
     output_file = f"output_{uuid.uuid4()}.exe"
     input_file_path = os.path.abspath(input_file)
     output_file_path = os.path.abspath(output_file)
 
     try:
-        # Write the payload_message to the input_file
-        with open(input_file_path, 'wb') as f:
-            f.write(zlib.decompress(base64.b64decode(payload_message["payload"])))
+        # Download the payload from the storage account
+        payload_bytes = storage_handler.download_bytes(payload_message["payload"])
+        
+        with open(input_file_path, "wb") as download_file:
+            download_file.write(payload_bytes)
 
         # Replace placeholders in the command
         command = command.replace("{input_file}", input_file_path)
@@ -36,23 +46,14 @@ def execute_command(command, payload_message):
             with open(output_file_path, 'rb') as f:
                 payload_bytes = f.read()
 
-        return payload_bytes, result.stdout
+        # Upload the output file to the storage account
+        sas_url = storage_handler.upload_bytes(payload_bytes)
 
-    except zlib.error as e:
-        logging.error(f"Failed to decompress payload: {str(e)}")
-        return None, f"Error: Failed to decompress payload - {str(e)}"
-    except base64.binascii.Error as e:
-        logging.error(f"Failed to decode base64 payload: {str(e)}")
-        return None, f"Error: Failed to decode base64 payload - {str(e)}"
-    except IOError as e:
-        logging.error(f"I/O error: {str(e)}")
-        return None, f"Error: I/O error - {str(e)}"
-    except subprocess.CalledProcessError as e:
-        logging.error(f"Command execution failed: {e.stderr}")
-        return None, f"Error: Command execution failed - {e.stderr}"
+        return sas_url, result.stdout
+
     except Exception as e:
-        logging.error(f"Unexpected error: {str(e)}")
-        return None, f"Error: Unexpected error occurred - {str(e)}"
+        logging.error(f"Error: {str(e)}")
+        return None, f"Error: {str(e)}"
     finally:
         # Clean up temporary files
         for file_path in (input_file_path, output_file_path):
@@ -62,55 +63,51 @@ def execute_command(command, payload_message):
                 except Exception as e:
                     logging.warning(f"Failed to remove temporary file {file_path}: {str(e)}")
 
-def main(config_file):
+async def main(config_file):
     config = read_config(config_file)
 
     connection_string = config['connection_string']
     input_queue = config['input_queue']
     output_queue = config['output_queue']
+    encryption_key = config['encryption_key']
     command = config['command']
+    storage_connection_string = config['storage_connection_string']
+    storage_container_name = config['storage_container_name']
 
-    servicebus_client = ServiceBusClient.from_connection_string(connection_string)
+    servicebus_handler = ServiceBusHandler(connection_string, input_queue, output_queue)
+    storage_handler = StorageHandler(storage_connection_string, storage_container_name, encryption_key)
 
-    with servicebus_client:
-        receiver = servicebus_client.get_queue_receiver(queue_name=input_queue)
-        sender = servicebus_client.get_queue_sender(queue_name=output_queue)
+    servicebus_handler._ensure_queues_exist()
 
-        with receiver, sender:
-            print("Waiting for messages...")
-            while True:
-                received_msgs = receiver.receive_messages(max_message_count=1, max_wait_time=5)
-                for message in received_msgs:
+    print("Waiting for messages...")
+    while True:
+        message = await servicebus_handler.receive_message(timeout=5)
+        if message:
+            base64_payload = base64.b64decode(str(message))
+            decompressed_payload = zlib.decompress(base64_payload)
+            payload_message = json.loads(decompressed_payload)
 
-                    base64_payload = base64.b64decode(str(message))
-                    
-                    decompressed_payload = zlib.decompress(base64_payload)
+            # Execute the command
+            payload_url, stdout = execute_command(command, payload_message, storage_handler)
 
-                    payload_message = json.loads(decompressed_payload)
+            # Prepare the response
+            response = {
+                "payload": payload_url,
+                "status": "success" if payload_url else "error",
+                "error": stdout
+            }
 
-                    # Execute the command
-                    payload_bytes, stdout = execute_command(command, payload_message)
+            # Compress and encode the response
+            compressed_response = base64.b64encode(zlib.compress(json.dumps(response).encode())).decode()
 
-                    # Prepare the response, only encode if the payload is not None
-                    response = {
-                        "payload": base64.b64encode(payload_bytes).decode() if payload_bytes else None,
-                        "status": "success" if payload_bytes else "error",
-                        "error": stdout
-                    }
-
-                    # Compress and encode the response
-                    compressed_response = base64.b64encode(zlib.compress(json.dumps(response).encode())).decode()
-
-                    # Send the response
-                    sender.send_messages(ServiceBusMessage(compressed_response))
-                    print("Response sent")
-
-                    # Complete the message
-                    receiver.complete_message(message)
+            # Send the response
+            await servicebus_handler.send_message(compressed_response)
+            print("Response sent")
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Usage: python remote_wrapper_client.py <config_file>")
         sys.exit(1)
     
-    main(sys.argv[1])
+
+    asyncio.run(main(sys.argv[1]))

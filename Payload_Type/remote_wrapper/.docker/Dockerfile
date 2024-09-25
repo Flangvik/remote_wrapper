@@ -14,7 +14,5 @@ RUN pip install --no-cache /wheels/*
 WORKDIR /Mythic/
 
 COPY [".", "."]
-# prep download any necessary nuget packages
-RUN cd service_wrapper/agent_code && nuget restore
 
 CMD ["python3", "main.py"]
