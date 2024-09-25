@@ -1,7 +1,8 @@
 {
-    "connection_string": "Endpoint=sb://remotemyth.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=/VGbJIRkRIsYZSkWIpcwvut6z7YHQ/bqU+ASbH0tw3Q=",
+    "connection_string": "servicebus_connection_string",
     "input_queue": "payload_build_requests",
     "output_queue": "payload_build_responses",
-    "command": "calc.exe {input_file} {output_file}"
+    "command": "calc.exe {input_file} {output_file}",
+    "encryption_key": "encryption_key"
 
 }
