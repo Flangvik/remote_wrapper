@@ -1,5 +1,7 @@
 {
     "connection_string": "servicebus_connection_string",
+    "storage_connection_string" : "storage_connection_string",
+    "storage_container_name" : "storage_container_name",
     "input_queue": "payload_build_requests",
     "output_queue": "payload_build_responses",
     "command": "calc.exe {input_file} {output_file}",
